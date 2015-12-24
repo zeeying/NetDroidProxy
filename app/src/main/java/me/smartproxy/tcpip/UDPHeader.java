@@ -5,6 +5,18 @@ package me.smartproxy.tcpip;
  */
 public class UDPHeader {
 
+
+	/**
+	 * UDP数据报格式
+	 * ｜－－－－－－－－－－－－－－－－－－－－－－－－－－－－－｜
+	 * ｜  １６位源端口号         ｜   １６位目的端口号        ｜
+	 * ｜－－－－－－－－－－－－－－－－－－－－－－－－－－－－－｜
+	 * ｜  １６位ＵＤＰ长度       ｜   １６位ＵＤＰ检验和       ｜
+	 * ｜－－－－－－－－－－－－－－－－－－－－－－－－－－－－－｜
+	 * ｜                  数据（如果有）                    ｜
+	 * ｜－－－－－－－－－－－－－－－－－－－－－－－－－－－－－｜
+	 **/
+
 	static final short offset_src_port = 0; // Source port
 	static final short offset_dest_port = 2; // Destination port
 	static final short offset_tlen = 4; // Datagram length

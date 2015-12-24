@@ -36,8 +36,10 @@ public class ChinaIpMaskManager {
 			byte[] buffer = new byte[4096];
 			while ((count = inputStream.read(buffer)) > 0) {
 				for (int i = 0; i < count; i += 8) {
-					int ip = CommonMethods.readInt(buffer, i);
-					int mask = CommonMethods.readInt(buffer, i + 4);
+					int ip = CommonMethods.readInt(buffer, i); //ip: 如223.166.0.0
+					int mask = CommonMethods.readInt(buffer, i + 4);  //子网掩码：如255.254.0.0
+//					Log.i(LocalVpnService.TAG, String.format("%s/%s", CommonMethods.ipIntToString(ip), CommonMethods
+// .ipIntToString(mask)));
 					ChinaIpMaskDict.put(ip, mask);
 					MaskDict.put(mask, mask);
 					//System.out.printf("%s/%s\n", CommonMethods.IP2String(ip),CommonMethods.IP2String(mask));

@@ -199,9 +199,16 @@ public class ProxyConfig {
 //
 //			String configString=EntityUtils.toString(response.getEntity(),"UTF-8");
 //			String[] lines=configString.split("\\n");
-			String[] lines = new String[0];
+			ArrayList<String> strings = new ArrayList<>();
+			strings.add("proxy http://172.16.5.23:8888");
+			strings.add("welcome_info Welcome to SmartProxy");
+			String[] lines = new String[strings.size()];
+			for (int i = 0; i < strings.size(); i++) {
+				lines[i] = strings.get(i);
+			}
 			return lines;
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new Exception(String.format("Download config file from %s failed.", url));
 		}
 	}
