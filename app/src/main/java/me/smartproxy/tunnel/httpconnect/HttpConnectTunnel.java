@@ -6,6 +6,7 @@ import java.nio.channels.Selector;
 
 import me.smartproxy.core.ProxyConfig;
 import me.smartproxy.tunnel.Tunnel;
+import me.smartproxy.util.DebugLog;
 
 /**
  * Created by zengzheying on 15/12/23.
@@ -82,8 +83,10 @@ public class HttpConnectTunnel extends Tunnel {
 				super.write(buffer, false);
 				bytesSent = 10 - buffer.remaining();
 				buffer.limit(limit);
-				if (ProxyConfig.IS_DEBUG)
-					System.out.printf("Send %d bytes(%s) to %s\n", bytesSent, firString, m_DestAddress);
+				if (ProxyConfig.IS_DEBUG) {
+//					System.out.printf("Send %d bytes(%s) to %s\n", bytesSent, firString, m_DestAddress);
+					DebugLog.i("Send %d bytes(%s) to %s\n", bytesSent, firString, m_DestAddress);
+				}
 			}
 		}
 	}

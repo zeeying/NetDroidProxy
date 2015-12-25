@@ -23,6 +23,8 @@ import me.smartproxy.tunnel.shadowsocks.ShadowsocksConfig;
  */
 public class ProxyConfig {
 
+	public static final String TAG = ProxyConfig.class.getSimpleName();
+
 	public static final ProxyConfig Instance = new ProxyConfig();
 	public final static boolean IS_DEBUG = true;
 	public final static int FAKE_NETWORK_MASK = CommonMethods.ipStringToInt("255.255.0.0");

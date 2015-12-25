@@ -27,6 +27,7 @@ import me.smartproxy.tcpip.IPHeader;
 import me.smartproxy.tcpip.TCPHeader;
 import me.smartproxy.tcpip.UDPHeader;
 import me.smartproxy.ui.MainActivity;
+import me.smartproxy.util.DebugLog;
 
 /**
  * Created by zengzheying on 15/12/23.
@@ -69,7 +70,10 @@ public class LocalVpnService extends VpnService implements Runnable {
 		m_DNSBuffer = ((ByteBuffer) ByteBuffer.wrap(m_Packet).position(28)).slice();
 		Instance = this;
 
-		System.out.printf("New VPNService(%d)\n", ID);
+//		System.out.printf("New VPNService(%d)\n", ID);
+		if (ProxyConfig.IS_DEBUG) {
+			DebugLog.i("New VPNService(%d)\n", ID);
+		}
 	}
 
 	public static void addOnStatusChangedListener(onStatusChangedListener listener) {
@@ -86,7 +90,10 @@ public class LocalVpnService extends VpnService implements Runnable {
 
 	@Override
 	public void onCreate() {
-		System.out.printf("VPNService(%s) created.\n", ID);
+//		System.out.printf("VPNService(%s) created.\n", ID);
+		if (ProxyConfig.IS_DEBUG) {
+			DebugLog.i("VPNService(%s) created.\n", ID);
+		}
 		// Start a new session by creating a new thread.
 		m_VPNThread = new Thread(this, "VPNServiceThread");
 		m_VPNThread.start();
@@ -104,7 +111,10 @@ public class LocalVpnService extends VpnService implements Runnable {
 	//终止未停止的VPN线程
 	@Override
 	public void onDestroy() {
-		System.out.printf("VPNService(%s) destoried.\n", ID);
+//		System.out.printf("VPNService(%s) destoried.\n", ID);
+		if (ProxyConfig.IS_DEBUG) {
+			DebugLog.i("VPNService(%s) destroyed.\n", ID);
+		}
 		if (m_VPNThread != null) {
 			m_VPNThread.interrupt();
 		}
@@ -122,6 +132,9 @@ public class LocalVpnService extends VpnService implements Runnable {
 	}
 
 	public void writeLog(final String format, Object... args) {
+		if (ProxyConfig.IS_DEBUG) {
+			DebugLog.i(format, args);
+		}
 		final String logString = String.format(format, args);
 		m_Handler.post(new Runnable() {
 			@Override
@@ -188,6 +201,12 @@ public class LocalVpnService extends VpnService implements Runnable {
 	}
 
 	void onIPPacketReceived(IPHeader ipHeader, int size) throws IOException {
+
+//		if (ProxyConfig.IS_DEBUG) {
+//			DebugLog.i("Source IP: %s -> Destination IP: %s", CommonMethods.ipIntToString(ipHeader.getSourceIP()),
+//					CommonMethods.ipIntToString(ipHeader.getDestinationIP()));
+//		}
+
 		switch (ipHeader.getProtocol()) {
 			case IPHeader.TCP:
 				TCPHeader tcpHeader = m_TCPHeader;
@@ -204,7 +223,8 @@ public class LocalVpnService extends VpnService implements Runnable {
 							m_VPNOutputStream.write(ipHeader.m_Data, ipHeader.m_Offset, size);
 							m_ReceivedBytes += size;
 						} else {
-							System.out.printf("NoSession: %s %s\n", ipHeader.toString(), tcpHeader.toString());
+//							System.out.printf("NoSession: %s %s\n", ipHeader.toString(), tcpHeader.toString());
+							DebugLog.i("NoSession: %s %s\n", ipHeader.toString(), tcpHeader.toString());
 						}
 					} else {
 
@@ -231,7 +251,9 @@ public class LocalVpnService extends VpnService implements Runnable {
 							String host = HttpHostHeaderParser.parseHost(tcpHeader.m_Data, dataOffset, tcpDataSize);
 							if (host != null) {
 								session.RemoteHost = host;
-//								Log.w(TAG, String.format("Host: %s", host));
+								if (ProxyConfig.IS_DEBUG) {
+									DebugLog.i("Host: %s", host);
+								}
 							}
 						}
 
@@ -251,6 +273,10 @@ public class LocalVpnService extends VpnService implements Runnable {
 				// 转发DNS数据包：
 				UDPHeader udpHeader = m_UDPHeader;
 				udpHeader.m_Offset = ipHeader.getHeaderLength();
+				if (ProxyConfig.IS_DEBUG && udpHeader.getDestinationPort() == 53) {
+					DebugLog.i("udp package %s --> %s", CommonMethods.ipIntToString(ipHeader.getSourceIP()),
+							CommonMethods.ipIntToString(ipHeader.getDestinationIP()));
+				}
 				if (ipHeader.getSourceIP() == LOCAL_IP && udpHeader.getDestinationPort() == 53) {
 					m_DNSBuffer.clear();
 					m_DNSBuffer.limit(ipHeader.getDataLength() - 8);
@@ -263,20 +289,36 @@ public class LocalVpnService extends VpnService implements Runnable {
 		}
 	}
 
+	private void waitUntilPrepared() {
+		while (prepare(this) != null) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	@Override
 	public synchronized void run() {
 		try {
-			System.out.printf("VPNService(%s) work thread is runing...\n", ID);
+//			System.out.printf("VPNService(%s) work thread is runing...\n", ID);
+			if (ProxyConfig.IS_DEBUG) {
+				DebugLog.i("VPNService(%s) work thread is running...\n", ID);
+			}
 
 			ProxyConfig.AppInstallID = getAppInstallID();//获取安装ID
 			ProxyConfig.AppVersion = getVersionName();//获取版本号
-			System.out.printf("AppInstallID: %s\n", ProxyConfig.AppInstallID);
+//			System.out.printf("AppInstallID: %s\n", ProxyConfig.AppInstallID);
+			if (ProxyConfig.IS_DEBUG) {
+				DebugLog.i("AppInstallID: %s\n", ProxyConfig.AppInstallID);
+			}
 			writeLog("Android version: %s", Build.VERSION.RELEASE);
 			writeLog("App version: %s", ProxyConfig.AppVersion);
 
 
 			ChinaIpMaskManager.loadFromFile(getResources().openRawResource(R.raw.ipmask));//加载中国的IP段，用于IP分流。
-			waitUntilPreapred();//检查是否准备完毕。
+			waitUntilPrepared();//检查是否准备完毕。
 
 			m_TcpProxyServer = new TcpProxyServer(0);
 			m_TcpProxyServer.start();
@@ -330,49 +372,52 @@ public class LocalVpnService extends VpnService implements Runnable {
 		}
 	}
 
-	private void waitUntilPreapred() {
-		while (prepare(this) != null) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
 	private ParcelFileDescriptor establishVPN() throws Exception {
 		Builder builder = new Builder();
 		builder.setMtu(ProxyConfig.Instance.getMTU());
-		if (ProxyConfig.IS_DEBUG)
-			System.out.printf("setMtu: %d\n", ProxyConfig.Instance.getMTU());
+		if (ProxyConfig.IS_DEBUG) {
+//			System.out.printf("setMtu: %d\n", ProxyConfig.Instance.getMTU());
+			DebugLog.i("setMtu: %d\n", ProxyConfig.Instance.getMTU());
+		}
 
 		ProxyConfig.IPAddress ipAddress = ProxyConfig.Instance.getDefaultLocalIP();
 		LOCAL_IP = CommonMethods.ipStringToInt(ipAddress.Address);
 		builder.addAddress(ipAddress.Address, ipAddress.PrefixLength);
-		if (ProxyConfig.IS_DEBUG)
-			System.out.printf("addAddress: %s/%d\n", ipAddress.Address, ipAddress.PrefixLength);
+		if (ProxyConfig.IS_DEBUG) {
+//			System.out.printf("addAddress: %s/%d\n", ipAddress.Address, ipAddress.PrefixLength);
+			DebugLog.i("addAddress: %s/%d\n", ipAddress.Address, ipAddress.PrefixLength);
+		}
 
 		for (ProxyConfig.IPAddress dns : ProxyConfig.Instance.getDnsList()) {
 			builder.addDnsServer(dns.Address);
-			if (ProxyConfig.IS_DEBUG)
-				System.out.printf("addDnsServer: %s\n", dns.Address);
+			if (ProxyConfig.IS_DEBUG) {
+//				System.out.printf("addDnsServer: %s\n", dns.Address);
+				DebugLog.i("addDnsServer: %s\n", dns.Address);
+			}
 		}
 
 		if (ProxyConfig.Instance.getRouteList().size() > 0) {
 			for (ProxyConfig.IPAddress routeAddress : ProxyConfig.Instance.getRouteList()) {
 				builder.addRoute(routeAddress.Address, routeAddress.PrefixLength);
-				if (ProxyConfig.IS_DEBUG)
-					System.out.printf("addRoute: %s/%d\n", routeAddress.Address, routeAddress.PrefixLength);
+				if (ProxyConfig.IS_DEBUG) {
+//					System.out.printf("addRoute: %s/%d\n", routeAddress.Address, routeAddress.PrefixLength);
+					DebugLog.i("addRoute: %s/%d\n", routeAddress.Address, routeAddress.PrefixLength);
+				}
 			}
 			builder.addRoute(CommonMethods.ipIntToString(ProxyConfig.FAKE_NETWORK_IP), 16);
 
-			if (ProxyConfig.IS_DEBUG)
-				System.out.printf("addRoute for FAKE_NETWORK: %s/%d\n", CommonMethods.ipIntToString(ProxyConfig
+			if (ProxyConfig.IS_DEBUG) {
+//				System.out.printf("addRoute for FAKE_NETWORK: %s/%d\n", CommonMethods.ipIntToString(ProxyConfig
+//						.FAKE_NETWORK_IP), 16);
+				DebugLog.i("addRoute for FAKE_NETWORK: %s/%d\n", CommonMethods.ipIntToString(ProxyConfig
 						.FAKE_NETWORK_IP), 16);
+			}
 		} else {
 			builder.addRoute("0.0.0.0", 0);
-			if (ProxyConfig.IS_DEBUG)
-				System.out.printf("addDefaultRoute: 0.0.0.0/0\n");
+			if (ProxyConfig.IS_DEBUG) {
+//				System.out.printf("addDefaultRoute: 0.0.0.0/0\n");
+				DebugLog.i("addDefaultRoute: 0.0.0.0/0\n");
+			}
 		}
 
 
@@ -384,8 +429,10 @@ public class LocalVpnService extends VpnService implements Runnable {
 			if (value != null && !"".equals(value) && !servers.contains(value)) {
 				servers.add(value);
 				builder.addRoute(value, 32);
-				if (ProxyConfig.IS_DEBUG)
-					System.out.printf("%s=%s\n", name, value);
+				if (ProxyConfig.IS_DEBUG) {
+//					System.out.printf("%s=%s\n", name, value);
+					DebugLog.i("%s=%s\n", name, value);
+				}
 			}
 		}
 

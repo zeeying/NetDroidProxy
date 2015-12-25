@@ -16,6 +16,7 @@ import me.smartproxy.dns.ResourcePointer;
 import me.smartproxy.tcpip.CommonMethods;
 import me.smartproxy.tcpip.IPHeader;
 import me.smartproxy.tcpip.UDPHeader;
+import me.smartproxy.util.DebugLog;
 
 /**
  * Created by zengzheying on 15/12/23.
@@ -36,16 +37,28 @@ public class DnsProxy implements Runnable {
 		m_Client = new DatagramSocket(0);
 	}
 
+	/**
+	 * 根据IP查询域名
+	 *
+	 * @param ip ip地址
+	 * @return 对应的域名
+	 */
 	public static String reverseLookup(int ip) {
 		return IPDomainMaps.get(ip);
 	}
 
+	/**
+	 * 启动线程
+	 */
 	public void start() {
 		m_ReceivedThread = new Thread(this);
 		m_ReceivedThread.setName("DnsProxyThread");
 		m_ReceivedThread.start();
 	}
 
+	/**
+	 * 停止线程
+	 */
 	public void stop() {
 		Stopped = true;
 		if (m_Client != null) {
@@ -60,9 +73,11 @@ public class DnsProxy implements Runnable {
 			byte[] RECEIVE_BUFFER = new byte[2000];
 			IPHeader ipHeader = new IPHeader(RECEIVE_BUFFER, 0);
 			ipHeader.Default();
+			//offset 20 --> IP数据报头部长度为20字节
 			UDPHeader udpHeader = new UDPHeader(RECEIVE_BUFFER, 20);
 
 			ByteBuffer dnsBuffer = ByteBuffer.wrap(RECEIVE_BUFFER);
+			// 28：IP数据报头部20字节 + UDP数据报头部8字节
 			dnsBuffer.position(28);
 			dnsBuffer = dnsBuffer.slice();
 
@@ -88,7 +103,10 @@ public class DnsProxy implements Runnable {
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			System.out.println("DnsResolver Thread Exited.");
+//			System.out.println("DnsResolver Thread Exited.");
+			if (ProxyConfig.IS_DEBUG) {
+				DebugLog.i("DnsResolver Thread Exited.");
+			}
 			this.stop();
 		}
 	}
@@ -142,12 +160,17 @@ public class DnsProxy implements Runnable {
 			Question question = dnsPacket.Questions[0];
 			if (question.Type == 1) {
 				int realIP = getFirstIP(dnsPacket);
-				if (ProxyConfig.Instance.needProxy(question.Domain, realIP)) {
+				//加调试，国内流量也进行DNS污染
+				if (ProxyConfig.Instance.needProxy(question.Domain, realIP) || ProxyConfig.IS_DEBUG) {
 					int fakeIP = getOrCreateFakeIP(question.Domain);
 					tamperDnsResponse(rawPacket, dnsPacket, fakeIP);
-					if (ProxyConfig.IS_DEBUG)
-						System.out.printf("FakeDns: %s=>%s(%s)\n", question.Domain, CommonMethods.ipIntToString
+					if (ProxyConfig.IS_DEBUG) {
+//						System.out.printf("FakeDns: %s=>%s(%s)\n", question.Domain, CommonMethods.ipIntToString
+//								(realIP), CommonMethods.ipIntToString(fakeIP));
+
+						DebugLog.i("FakeDns: %s=>%s(%s)\n", question.Domain, CommonMethods.ipIntToString
 								(realIP), CommonMethods.ipIntToString(fakeIP));
+					}
 					return true;
 				}
 			}
@@ -155,6 +178,9 @@ public class DnsProxy implements Runnable {
 		return false;
 	}
 
+	/**
+	 * 收到Dns查询回复，转发给发起请求的客户端
+	 */
 	private void OnDnsResponseReceived(IPHeader ipHeader, UDPHeader udpHeader, DnsPacket dnsPacket) {
 		QueryState state = null;
 		synchronized (m_QueryArray) {
@@ -172,6 +198,7 @@ public class DnsProxy implements Runnable {
 			ipHeader.setSourceIP(state.RemoteIP);
 			ipHeader.setDestinationIP(state.ClientIP);
 			ipHeader.setProtocol(IPHeader.UDP);
+			// IP头部长度 + UDP头部长度 + DNS报文长度
 			ipHeader.setTotalLength(20 + 8 + dnsPacket.Size);
 			udpHeader.setSourcePort(state.RemotePort);
 			udpHeader.setDestinationPort(state.ClientPort);
@@ -192,15 +219,21 @@ public class DnsProxy implements Runnable {
 
 	private boolean interceptDns(IPHeader ipHeader, UDPHeader udpHeader, DnsPacket dnsPacket) {
 		Question question = dnsPacket.Questions[0];
-		System.out.println("DNS Qeury " + question.Domain);
+//		System.out.println("DNS Qeury " + question.Domain);
+		if (ProxyConfig.IS_DEBUG) {
+			DebugLog.i("DNS query %s", question.Domain);
+		}
 		if (question.Type == 1) {
-			if (ProxyConfig.Instance.needProxy(question.Domain, getIPFromCache(question.Domain))) {
+			if (ProxyConfig.Instance.needProxy(question.Domain, getIPFromCache(question.Domain)) || ProxyConfig.IS_DEBUG) {
 				int fakeIP = getOrCreateFakeIP(question.Domain);
 				tamperDnsResponse(ipHeader.m_Data, dnsPacket, fakeIP);
 
-				if (ProxyConfig.IS_DEBUG)
-					System.out.printf("interceptDns FakeDns: %s=>%s\n", question.Domain, CommonMethods.ipIntToString
+				if (ProxyConfig.IS_DEBUG) {
+//					System.out.printf("interceptDns FakeDns: %s=>%s\n", question.Domain, CommonMethods.ipIntToString
+//							(fakeIP));
+					DebugLog.i("interceptDns FakeDns: %s=>%s\n", question.Domain, CommonMethods.ipIntToString
 							(fakeIP));
+				}
 
 				int sourceIP = ipHeader.getSourceIP();
 				short sourcePort = udpHeader.getSourcePort();
@@ -256,7 +289,10 @@ public class DnsProxy implements Runnable {
 				if (LocalVpnService.Instance.protect(m_Client)) {
 					m_Client.send(packet);
 				} else {
-					System.err.println("VPN protect udp socket failed.");
+//					System.err.println("VPN protect udp socket failed.");
+					if (ProxyConfig.IS_DEBUG) {
+						DebugLog.e("VPN protect udp socket failed.");
+					}
 				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block

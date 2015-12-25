@@ -10,6 +10,7 @@ import java.util.Iterator;
 
 import me.smartproxy.tcpip.CommonMethods;
 import me.smartproxy.tunnel.Tunnel;
+import me.smartproxy.util.DebugLog;
 
 /**
  * Created by zengzheying on 15/12/23.
@@ -98,11 +99,15 @@ public class TcpProxyServer implements Runnable {
 		short portKey = (short) localChannel.socket().getPort();
 		NatSession session = NatSessionManager.getSession(portKey);
 		if (session != null) {
-			if (ProxyConfig.Instance.needProxy(session.RemoteHost, session.RemoteIP)) {
-				if (ProxyConfig.IS_DEBUG)
-					System.out.printf("%d/%d:[PROXY] %s=>%s:%d\n", NatSessionManager.getSessionCount(), Tunnel
+			if (ProxyConfig.Instance.needProxy(session.RemoteHost, session.RemoteIP) || ProxyConfig.IS_DEBUG) {
+				if (ProxyConfig.IS_DEBUG) {
+//					System.out.printf("%d/%d:[PROXY] %s=>%s:%d\n", NatSessionManager.getSessionCount(), Tunnel
+//							.SessionCount, session.RemoteHost, CommonMethods.ipIntToString(session.RemoteIP), session
+//							.RemotePort & 0xFFFF);
+					DebugLog.i("%d/%d:[PROXY] %s=>%s:%d\n", NatSessionManager.getSessionCount(), Tunnel
 							.SessionCount, session.RemoteHost, CommonMethods.ipIntToString(session.RemoteIP), session
 							.RemotePort & 0xFFFF);
+				}
 				return InetSocketAddress.createUnresolved(session.RemoteHost, session.RemotePort & 0xFFFF);
 			} else {
 				return new InetSocketAddress(localChannel.socket().getInetAddress(), session.RemotePort & 0xFFFF);
