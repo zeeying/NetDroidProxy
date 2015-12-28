@@ -33,6 +33,8 @@ import java.util.Calendar;
 
 import me.smartproxy.R;
 import me.smartproxy.core.LocalVpnService;
+import me.smartproxy.core.ProxyConfig;
+import me.smartproxy.util.DebugLog;
 
 /**
  * Created by zengzheying on 15/12/23.
@@ -97,14 +99,18 @@ public class MainActivity extends AppCompatActivity implements
 	String getVersionName() {
 		PackageManager packageManager = getPackageManager();
 		if (packageManager == null) {
-			Log.e(TAG, "null package manager is impossible");
+			if (ProxyConfig.IS_DEBUG) {
+				DebugLog.e("null package manager is impossible");
+			}
 			return null;
 		}
 
 		try {
 			return packageManager.getPackageInfo(getPackageName(), 0).versionName;
 		} catch (PackageManager.NameNotFoundException e) {
-			Log.e(TAG, "package not found is impossible", e);
+			if (ProxyConfig.IS_DEBUG) {
+				DebugLog.e("package not found is impossible %s", e);
+			}
 			return null;
 		}
 	}

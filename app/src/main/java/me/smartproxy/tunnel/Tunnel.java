@@ -11,6 +11,7 @@ import java.nio.channels.SocketChannel;
 
 import me.smartproxy.core.LocalVpnService;
 import me.smartproxy.core.ProxyConfig;
+import me.smartproxy.util.DebugLog;
 
 /**
  * Created by zengzheying on 15/12/23.
@@ -41,6 +42,12 @@ public abstract class Tunnel {
 		this.m_ServerEP = serverAddress;
 		SessionCount++;
 	}
+
+	/**
+	 * 方法调用次序：
+	 * connect() -> onConnectable() -> onConnected()[子类实现]
+	 * beginReceived() ->  onReadable() -> afterReceived()[子类实现]
+	 */
 
 	protected abstract void onConnected(ByteBuffer buffer) throws Exception;
 
@@ -132,8 +139,9 @@ public abstract class Tunnel {
 					m_BrotherTunnel.beforeSend(buffer);//发送之前，先让子类处理，例如做加密等。
 					if (!m_BrotherTunnel.write(buffer, true)) {
 						key.cancel();//兄弟吃不消，就取消读取事件。
-						if (ProxyConfig.IS_DEBUG)
-							System.out.printf("%s can not read more.\n", m_ServerEP);
+						if (ProxyConfig.IS_DEBUG) {
+							DebugLog.w("%s can not read more.\n", m_ServerEP);
+						}
 					}
 				}
 			} else if (bytesRead < 0) {

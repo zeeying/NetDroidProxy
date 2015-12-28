@@ -29,7 +29,7 @@ public class TunnelFactory {
 			} else if (config instanceof ShadowsocksConfig) {
 				return new ShadowsocksTunnel((ShadowsocksConfig) config, selector);
 			}
-			throw new Exception("The config is unknow.");
+			throw new Exception("The config is unknown.");
 		} else {
 			return new RawTunnel(destAddress, selector);
 		}

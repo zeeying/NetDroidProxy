@@ -34,8 +34,6 @@ import me.smartproxy.util.DebugLog;
  */
 public class LocalVpnService extends VpnService implements Runnable {
 
-	public static final String TAG = LocalVpnService.class.getSimpleName();
-
 	public static LocalVpnService Instance;
 	public static String ConfigUrl;
 	public static boolean IsRunning = false;
@@ -65,12 +63,13 @@ public class LocalVpnService extends VpnService implements Runnable {
 		m_Handler = new Handler();
 		m_Packet = new byte[20000];
 		m_IPHeader = new IPHeader(m_Packet, 0);
+		// 20 = ip报文头部
 		m_TCPHeader = new TCPHeader(m_Packet, 20);
 		m_UDPHeader = new UDPHeader(m_Packet, 20);
+		// 28 = ip报文头部 + udp报文头部
 		m_DNSBuffer = ((ByteBuffer) ByteBuffer.wrap(m_Packet).position(28)).slice();
 		Instance = this;
 
-//		System.out.printf("New VPNService(%d)\n", ID);
 		if (ProxyConfig.IS_DEBUG) {
 			DebugLog.i("New VPNService(%d)\n", ID);
 		}
@@ -90,7 +89,6 @@ public class LocalVpnService extends VpnService implements Runnable {
 
 	@Override
 	public void onCreate() {
-//		System.out.printf("VPNService(%s) created.\n", ID);
 		if (ProxyConfig.IS_DEBUG) {
 			DebugLog.i("VPNService(%s) created.\n", ID);
 		}
@@ -111,7 +109,6 @@ public class LocalVpnService extends VpnService implements Runnable {
 	//终止未停止的VPN线程
 	@Override
 	public void onDestroy() {
-//		System.out.printf("VPNService(%s) destoried.\n", ID);
 		if (ProxyConfig.IS_DEBUG) {
 			DebugLog.i("VPNService(%s) destroyed.\n", ID);
 		}
@@ -211,11 +208,11 @@ public class LocalVpnService extends VpnService implements Runnable {
 			case IPHeader.TCP:
 				TCPHeader tcpHeader = m_TCPHeader;
 				tcpHeader.m_Offset = ipHeader.getHeaderLength();
-				if (ipHeader.getSourceIP() == LOCAL_IP) {
+				if (ipHeader.getSourceIP() == LOCAL_IP) {  //本地TCP服务器发过来的ip数据包
 					if (tcpHeader.getSourcePort() == m_TcpProxyServer.Port) {// 收到本地TCP服务器数据
 						NatSession session = NatSessionManager.getSession(tcpHeader.getDestinationPort());
 						if (session != null) {
-							ipHeader.setSourceIP(ipHeader.getDestinationIP());
+							ipHeader.setSourceIP(ipHeader.getDestinationIP());  //修改ip，欺骗客户端
 							tcpHeader.setSourcePort(session.RemotePort);
 							ipHeader.setDestinationIP(LOCAL_IP);
 
@@ -223,7 +220,6 @@ public class LocalVpnService extends VpnService implements Runnable {
 							m_VPNOutputStream.write(ipHeader.m_Data, ipHeader.m_Offset, size);
 							m_ReceivedBytes += size;
 						} else {
-//							System.out.printf("NoSession: %s %s\n", ipHeader.toString(), tcpHeader.toString());
 							DebugLog.i("NoSession: %s %s\n", ipHeader.toString(), tcpHeader.toString());
 						}
 					} else {
@@ -274,7 +270,7 @@ public class LocalVpnService extends VpnService implements Runnable {
 				UDPHeader udpHeader = m_UDPHeader;
 				udpHeader.m_Offset = ipHeader.getHeaderLength();
 				if (ProxyConfig.IS_DEBUG && udpHeader.getDestinationPort() == 53) {
-					DebugLog.i("udp package %s --> %s", CommonMethods.ipIntToString(ipHeader.getSourceIP()),
+					DebugLog.i("Dns Query %s --> %s", CommonMethods.ipIntToString(ipHeader.getSourceIP()),
 							CommonMethods.ipIntToString(ipHeader.getDestinationIP()));
 				}
 				if (ipHeader.getSourceIP() == LOCAL_IP && udpHeader.getDestinationPort() == 53) {

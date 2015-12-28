@@ -31,15 +31,26 @@ public class TcpProxyServer implements Runnable {
 		m_ServerSocketChannel.socket().bind(new InetSocketAddress(port));
 		m_ServerSocketChannel.register(m_Selector, SelectionKey.OP_ACCEPT);
 		this.Port = (short) m_ServerSocketChannel.socket().getLocalPort();
-		System.out.printf("AsyncTcpServer listen on %d success.\n", this.Port & 0xFFFF);
+		if (ProxyConfig.IS_DEBUG) {
+			DebugLog.i("AsyncTcpServer listen on %d success.\n", this.Port & 0xFFFF);
+		}
 	}
 
+	/**
+	 * 启动TcpProxyServer线程
+	 */
 	public void start() {
 		m_ServerThread = new Thread(this);
 		m_ServerThread.setName("TcpProxyServerThread");
 		m_ServerThread.start();
 	}
 
+	/**
+	 * 停止线程
+	 * 设置Stopped标记为true
+	 * 关闭m_Selector
+	 * 关闭m_ServerSocketChannel
+	 */
 	public void stop() {
 		this.Stopped = true;
 		if (m_Selector != null) {
@@ -101,9 +112,6 @@ public class TcpProxyServer implements Runnable {
 		if (session != null) {
 			if (ProxyConfig.Instance.needProxy(session.RemoteHost, session.RemoteIP) || ProxyConfig.IS_DEBUG) {
 				if (ProxyConfig.IS_DEBUG) {
-//					System.out.printf("%d/%d:[PROXY] %s=>%s:%d\n", NatSessionManager.getSessionCount(), Tunnel
-//							.SessionCount, session.RemoteHost, CommonMethods.ipIntToString(session.RemoteIP), session
-//							.RemotePort & 0xFFFF);
 					DebugLog.i("%d/%d:[PROXY] %s=>%s:%d\n", NatSessionManager.getSessionCount(), Tunnel
 							.SessionCount, session.RemoteHost, CommonMethods.ipIntToString(session.RemoteIP), session
 							.RemotePort & 0xFFFF);
